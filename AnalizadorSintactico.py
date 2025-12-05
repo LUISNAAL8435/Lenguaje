@@ -1,6 +1,8 @@
 from TablaSimbolos import TablaSimbolos
 from Gestordetamano import Gestordetamano
 from Verificarrango import Verificarrango
+from OptimizadorTac import OptimizadorTAC
+from GeneradorFinal import GeneradorCodigoArduino
 
 class AnalizadorSintactico:
     def __init__(self, tokens):
@@ -13,6 +15,8 @@ class AnalizadorSintactico:
         self.metodo_nombre_actual = None
         self.verificartamano = Gestordetamano()
         self.codigo_intermedio = []  # Se llenará al final del análisis
+        self.codigo_mejorado = []  # Código optimizado
+        self.codigo_optimizadoo = []  # Código optimizado final
         self.temporal_counter = 0
         self.etiqueta_counter = 0    # Separado para etiquetas
 
@@ -73,6 +77,13 @@ class AnalizadorSintactico:
         if codigo_metodos:
             codigo_completo.extend(codigo_metodos)
         # Almacenar todo el código intermedio generado
+        if codigo_completo:
+            optimizador = OptimizadorTAC(codigo_completo)
+            codigo_optimizado = optimizador.optimizar()
+            self.codigo_mejorado = codigo_optimizado
+            generador = GeneradorCodigoArduino(codigo_optimizado)
+            codigo_final = generador.generar_codigo()
+            self.codigo_optimizadoo = codigo_final
         self.codigo_intermedio = codigo_completo
     
     def parse_ListaDeclaraciones(self, tablaLocal=None, tablaGlobal=None):
@@ -460,7 +471,7 @@ class AnalizadorSintactico:
                     'parametro': False,
                     'tamaño': tam
                 })
-                codigo += exp['codigo'] + [('=', exp['lugar'], id_nombre, '-')]
+                codigo += exp['codigo'] + [('=', exp['lugar'],'-', id_nombre)]
             else:
                 tabla_objetivo.insertar(id_nombre, {
                     'tipo': tipo,
@@ -539,7 +550,7 @@ class AnalizadorSintactico:
         var['valor']=exp['valor']
         var['Inicializado']=True
         self.consumir(self.token_actual[2], self.token_actual[3], 'Delimitador', ';')
-        codigo = exp['codigo'] + [('=', exp['lugar'], id_nombre, '-')]
+        codigo = exp['codigo'] + [('=', exp['lugar'], '-',id_nombre)]
         return {'codigo': codigo}
     
     def parse_PinMode(self, tablaLocal=None, tablaGlobal=None):
@@ -599,7 +610,7 @@ class AnalizadorSintactico:
         # Generar código intermedio
         t = self.nuevo_temporal()
         codigo_literal = [('literal', valor, '-', t)]
-        codigo_pinmode = codigo_literal + [('pinMode', id_pin, t, '-')]
+        codigo_pinmode = codigo_literal + [('pinMode', id_pin,t,'-')]
         return {'codigo': codigo_pinmode}
     
     def parse_ReadPin(self, tablaLocal=None, tablaGlobal=None):
@@ -706,9 +717,9 @@ class AnalizadorSintactico:
         
         codigo = []
         codigo += cond['codigo']
-        codigo.append(('ifFalse', cond['lugar'], '-', labelElse))
+        codigo.append(('ifFalse', cond['lugar'],labelElse, '-',))
         codigo += sentencias_if_codigo
-        codigo.append(('goto', '-', '-', labelEnd))
+        codigo.append(('goto', '-',labelEnd,'-'))
         codigo.append((labelElse + ':', '-', '-', '-'))
         codigo += else_codigo
         codigo.append((labelEnd + ':', '-', '-', '-'))
@@ -753,9 +764,9 @@ class AnalizadorSintactico:
         codigo = []
         codigo.append((labelInicio + ':', '-', '-', '-'))
         codigo += cond['codigo']
-        codigo.append(('ifFalse', cond['lugar'], '-', labelEnd))
+        codigo.append(('ifFalse', cond['lugar'],labelEnd ,'-',))
         codigo += sentencias_if_codigo
-        codigo.append(('goto', '-', '-', labelInicio))
+        codigo.append(('goto', '-',labelInicio ,'-',))
         codigo.append((labelEnd + ':', '-', '-', '-'))
 
         return {'codigo': codigo}

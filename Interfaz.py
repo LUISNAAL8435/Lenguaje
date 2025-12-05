@@ -3,6 +3,8 @@ from tkinter import ttk
 from tkinter import filedialog,messagebox
 from Lexico import analizar_codigo
 from AnalizadorSintactico import AnalizadorSintactico
+import subprocess
+import os
 
 analizador_global = None
 analizador_global=None
@@ -32,6 +34,7 @@ def guardar():
             with open(ruta,"w",encoding="utf-8") as archivo:
                   archivo.write(contenido)
 def run():
+      nombre_archivo = "codigo_generado.ino"
       datos = entrada_texto.get("1.0",tk.END)
       tokens = analizar_codigo(datos)
       texLexico.delete(1.0,tk.END)
@@ -45,14 +48,79 @@ def run():
             textErrores.config(fg='lightgreen',state="disabled")
             return
       analizaadorSintactico(tokens)
-      # Mostrar código TAC automáticamente después del análisis
       if analizador_global and analizador_global.codigo_intermedio:
             print("\n=== CÓDIGO TAC GENERADO ===")
             for i, instr in enumerate(analizador_global.codigo_intermedio):
                   print(f"{i}: {instr}")
             print("===========================\n")
+      if analizador_global and analizador_global.codigo_mejorado:
+            print("\n=== CÓDIGO TAC MEJORADO ===")
+            for j, instrr in enumerate(analizador_global.codigo_mejorado):
+                  print(f"{j}: {instrr}")
+            print("===========================\n")
+
+      if analizador_global and analizador_global.codigo_optimizadoo:
+            print("\n=== CÓDIGO FINAL PARA ARDUINO/ESP32 ===")
+            print("=" * 50)
+            print(analizador_global.codigo_optimizadoo)
+            print("=" * 50)
+            
+            # También puedes guardarlo en un archivo .ino
+            with open("codigo_generado.ino", "w") as f:
+                f.write(analizador_global.codigo_optimizadoo)
+                carpeta_sketch = nombre_archivo.replace(".ino", "")
+            if not os.path.exists(carpeta_sketch):
+                os.makedirs(carpeta_sketch)
+
+            # 3. Mover el archivo dentro de esa carpeta
+            nuevo_path = os.path.join(carpeta_sketch, nombre_archivo)
+            os.replace(nombre_archivo, nuevo_path)
+
+            print(f"Archivo creado correctamente en:\n{nuevo_path}")
 
 tabla_global = None  
+def subir_codigo():
+    archivo = filedialog.askopenfilename(
+        title="Select File",
+        filetypes=[("Archivos aT","*.ino"), ("Todos los archivos","*.*")]
+    )
+
+    if not archivo:
+        return
+
+    try:
+        with open(archivo, 'r', encoding='latin-1') as f:
+            code = f.read()
+            entrada_texto.delete("1.0", tk.END)
+            entrada_texto.insert(tk.END, code)
+            _actualizar_lineas()
+
+        # ===== COMPILAR =====
+        compilar = subprocess.run(
+            ["C:\\arduino-cli_1.3.1_Windows_64bit\\arduino-cli.exe", "compile", "--fqbn", "esp32:esp32:esp32", archivo],
+            capture_output=True,
+            text=True
+        )
+
+        if compilar.returncode != 0:
+            messagebox.showerror("Error compilando", compilar.stderr)
+            return
+
+        # ===== SUBIR =====
+        subir = subprocess.run(
+            ["C:\\arduino-cli_1.3.1_Windows_64bit\\arduino-cli.exe", "upload", "-p", "COM9", "--fqbn", "esp32:esp32:esp32", archivo],
+            capture_output=True,
+            text=True
+        )
+
+        if subir.returncode != 0:
+            messagebox.showerror("Error al subir", subir.stderr)
+            return
+
+        messagebox.showinfo("Éxito", "Código compilado y subido correctamente al ESP32.")
+
+    except Exception as e:
+        messagebox.showerror("Error", f"Ocurrió un problema:\n{e}")
 
 def analizaadorSintactico(tokens):
     global tabla_global, analizador_global  # Añade analizador_global
@@ -344,6 +412,8 @@ btn_tabla=tk.Button(contenedor,width=10,height=1,text="TABLA",command=mostrar_ta
 btn_tabla.pack(pady=2,padx=2,side="right")
 btn_cod=tk.Button(contenedor,width=10,height=1,text="COD",command=mostrar_codigo_tresDirec)
 btn_cod.pack(pady=2,padx=2,side="right")
+btn_sub=tk.Button(contenedor,width=10,height=1,text="SUB",command=subir_codigo)
+btn_sub.pack(pady=2,padx=2,side="right")
 btn_run=tk.Button(contenedor,width=10,height=1,text="RUN",command=run)
 btn_run.pack(pady=2,padx=2,side="right")
 #ContenedorIntermedio
